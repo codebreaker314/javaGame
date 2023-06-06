@@ -1,0 +1,311 @@
+import java.util.Scanner;
+import java.io.*;
+import java.util.ArrayList;
+import javax.swing.JFrame;
+import acm.graphics.*;
+import java.util.concurrent.TimeUnit;
+import java.awt.Color;
+import java.awt.event.*;
+
+public class Wordle extends JFrame implements KeyListener{
+    int guessNum, guessIndex;
+    Word attempts[];
+    char avoidButtonBounce = '-', animateL = '-';
+    Letter toAnimate;
+    boolean animateFlip = false, breakb = false;
+    ArrayList<String> wordList = new ArrayList<String>();
+    GRoundRect endContainer = new GRoundRect(100, 0, 400, 500, 40);
+    GLabel winText = new GLabel("",0,0);
+    GLabel auxillaryText = new GLabel("",0,0);
+    
+    boolean finish = false;
+    public Wordle() throws IOException{
+        String targetWord;
+        this.guessNum = 0;
+        this.guessIndex = 0;
+        setVisible(true);
+        setTitle("Wordle!");
+        setSize(600,600);
+        GCanvas canvas = new GCanvas();
+        add(canvas);
+        canvas.addKeyListener(this);
+
+        //Parse .csv file and add words to list.
+        Scanner fileScan;
+        fileScan = new Scanner(new File("C:/Users/9694799554/Downloads/Untitled document.txt"));
+        while(fileScan.hasNext()){
+            wordList.add(fileScan.nextLine());
+        }
+        targetWord = wordList.get((int)(Math.random()*wordList.size()));
+
+        
+        System.out.println(targetWord);
+        this.attempts = new Word[6];
+        for(int i = 0; i <= 5; i++){
+            attempts[i] = new Word(i, targetWord, canvas);
+        }
+        while(true){
+            
+            if(breakb){
+
+                canvas.add(endContainer);
+                canvas.add(winText);
+                canvas.add(auxillaryText);
+                endContainer.setFilled(true);
+                endContainer.setVisible(true);
+                winText.setVisible(true);
+                auxillaryText.setVisible(true);
+                winText.setLocation(300-winText.getWidth()/2,250);
+                auxillaryText.setLocation(300-auxillaryText.getWidth()/2, 300);
+                finish = true;
+                
+            }
+            animate();
+            if(finish){
+                break;
+            }
+            
+        }
+    }
+
+    public double lerp(double a, double b, double t){
+        return a+(b-a)*t;
+    }
+
+    public void animateEnd(){
+        
+        double a = 0;
+        
+        System.out.println(endContainer);
+        while(a<1){
+            endContainer.setLocation(endContainer.getX(), lerp(endContainer.getY(), 100, 0.001));
+            endContainer.setColor(new Color(100, 100, 140, (int)(220*a)));
+            winText.setColor(new Color(255,255,255,(int)(220*a)));
+            auxillaryText.setColor(new Color(255,255,255, (int)(200*a)));
+            a+=0.01;
+            delay(1);
+        }
+        
+    }
+
+    public void animate(){
+
+        System.out.flush();
+        if(animateFlip == true){
+            enter();
+            animateFlip=false;
+        }
+        if(animateL!='-'){
+            toAnimate.update(animateL);
+            animateL = '-';
+        }
+        if(finish){
+            animateEnd();
+        }
+    }
+
+    private void delay(int n){
+        try{
+            TimeUnit.MILLISECONDS.sleep(n);
+        }catch(InterruptedException e){
+            
+        }
+    }
+
+    public void enter(){
+        String testString = "";
+        for(Letter box: attempts[Math.min(5, guessNum)].letters){
+            testString += box.currentLetter;
+        }
+
+        boolean inList = false;
+        for(var i = 0; i  < wordList.size(); i++){
+            if(testString.equals(wordList.get(i))){
+                inList = true;
+            }
+        }
+        if(!inList){
+            for(Letter box: attempts[Math.min(5, guessNum)].letters){
+                box.currentLetter = ' ';
+                box.update(' ');
+                guessIndex = 0;
+            }
+            return;
+        }
+
+        for(Letter box: attempts[Math.min(5, guessNum)].letters){
+            double a = 0;
+            while(a<1){
+                box.flip(a);
+                a+=0.01;
+            }
+            delay(50);
+        }
+        guessIndex = 0;
+        guessNum++;
+
+        if(testString.equals(attempts[Math.min(5, guessNum)].targetWord)){
+            winText.setLabel("You Win!");
+            winText.setFont("Monospace-Bold-36");
+            auxillaryText.setLabel("It took you "+ guessNum + " tries.");
+            auxillaryText.setFont("Monospace-Bold-36");
+            breakb = true;
+        }
+        if(guessNum>=6&&!breakb){
+            breakb = true;
+            winText.setLabel("You Lose!");
+            winText.setFont("Monospace-Bold-36");
+            auxillaryText.setLabel("The word was "+attempts[Math.min(5, guessNum)].targetWord+".");
+            auxillaryText.setFont("Monospace-Bold-36");
+        }
+
+    }
+
+    public void keyPressed(KeyEvent e){
+        if(breakb){
+            return;
+        }
+        if(e.getKeyChar() == avoidButtonBounce){
+            return;
+        }
+        avoidButtonBounce = e.getKeyChar();
+        if(guessIndex < 6 && e.getKeyCode()>15){
+
+            Letter selected = attempts[Math.min(5, guessNum)].letters[Math.min(4, guessIndex)];
+            toAnimate = selected;
+            animateL = e.getKeyChar();
+            guessIndex++;
+        } 
+        if(guessIndex >= 5 && e.getKeyCode()==10){
+            animateFlip = true;
+        }
+        if(e.getKeyCode()==8&&guessIndex>0){
+
+            Letter selected = attempts[Math.min(5, guessNum)].letters[Math.min(4, guessIndex-1)];
+            toAnimate = selected;
+            animateL = ' ';
+
+            guessIndex--;
+        }
+    }
+
+    public void keyReleased(KeyEvent e){
+        avoidButtonBounce = '-';
+    }
+
+    public void keyTyped(KeyEvent e){}
+}
+
+class Word{
+    int num;
+    String targetWord;
+    GCanvas canvas;
+    Letter letters[];
+    public Word(int num, String targetWord, GCanvas canvas){
+        this.num = num;
+        this.targetWord = targetWord;
+        this.canvas = canvas;
+        int x = 175;
+        int y = 100+50*num;
+        this.letters = new Letter[5];
+        for(int i = 0; i < 5; i++){
+            letters[i] = new Letter(i, targetWord.charAt(i), x+50*i,y, canvas);
+            letters[i].parent = this;
+        }
+    }
+}
+
+class Letter{
+    int pos;
+    char targetLetter;
+    int x;
+    int y;
+    Word parent;
+    GCanvas canvas;
+    Color color = new Color(150,150,150);
+    GRect container, answer;
+    char currentLetter;
+    GLabel displayLetter;
+    public Letter(int pos, char targetLetter, int x, int y, GCanvas canvas){
+        this.pos = pos;
+        this.targetLetter = targetLetter;
+        this.x = x;
+        this.y = y;
+
+        this.canvas = canvas;
+        this.container = new GRect(x, y, 45,45);
+        canvas.add(container);
+        this.answer = new GRect(x+45/2,y,45,0);
+        canvas.add(answer);
+        answer.setVisible(false);
+        this.displayLetter = new GLabel("",x+25,y+35);
+        displayLetter.setFont("Monospace-40-Bold");
+        canvas.add(displayLetter);
+        displayLetter.setVisible(false);
+    }
+
+    private void delay(int n){
+        try{
+            TimeUnit.MILLISECONDS.sleep(n);
+        }catch(InterruptedException e){
+        }
+    }
+
+    private void slow(int n){
+        try{
+            TimeUnit.NANOSECONDS.sleep(n);
+        }catch(InterruptedException e){
+        }
+    }
+
+    public void flip(double a){
+
+        for(var i = 0; i < this.parent.targetWord.length(); i++){
+            if(currentLetter == this.parent.targetWord.charAt(i)){
+                color = new Color(230,190,100);
+            }
+        }
+
+        if(currentLetter == targetLetter){
+            color = new Color(30,220,50);
+        }
+
+        container.setFilled(true);
+        answer.setFilled(true);
+        answer.setColor(color);
+
+        int col = (int)Math.sin(a*Math.PI/2);
+        col = col*col;
+        displayLetter.setColor(new Color(255-col,255-col,255-col));
+        if(a<0.4){
+            container.setLocation(container.getX(),y+(45/2)*Math.cos(Math.PI*a));
+            container.setSize(45,(int)(45*Math.cos(Math.PI*a)));
+        }
+        if(a>0.5){
+            container.setVisible(false);
+            answer.setVisible(true);
+            answer.setFilled(true);
+            answer.setLocation(x,y+45/2+45/2*Math.cos(Math.PI*a));
+            answer.setSize(45,(int)(-45*Math.cos(Math.PI*a)));
+        }
+        delay(1);
+        a+=0.01;
+
+    }
+
+    public void update(char c){
+        currentLetter = c;
+        displayLetter.setLabel(""+currentLetter);
+        displayLetter.setVisible(true);
+        double a = 0;
+        while(a<1){
+            double size = Math.sin(a*Math.PI/2);
+            displayLetter.setFont("Monospace-"+(int)(40*size*size)+"-Bold");
+            displayLetter.setLocation(x+25-displayLetter.getWidth()/2,displayLetter.getY());
+            a+=0.04;
+            delay(1);
+        }
+    }
+
+}
+

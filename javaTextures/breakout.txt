@@ -1,0 +1,378 @@
+/** Import Libraries **/
+
+import javax.swing.JFrame;
+import acm.graphics.*;
+import java.util.concurrent.TimeUnit;
+import java.awt.Color;
+import java.awt.event.*;
+
+/** Create our Class **/
+//Extends JFrame
+public class breakout extends JFrame implements KeyListener{
+    //External variable: canvas
+    GCanvas canvas;
+    GRect bg;
+    GRect paddle;
+    GOval ball;
+    boolean paused = false;
+    boolean delag = !false;
+    
+    int prevDestroyed = 0;
+    
+    boolean[] keys = new boolean[100];
+    
+    Brick[] bricks = new Brick[80];
+    
+    GLabel winText; 
+    ParticleSystem[] winBoom;
+    
+    //Show jframe, name title, set size.  Add canvas to the Jframe, setup.
+    
+    public void setup(){
+       
+       
+       
+       
+       this.setVisible(true);
+       this.setTitle("Breakout");
+       this.setSize(600,600);
+       
+       this.canvas = new GCanvas();
+       this.add(this.canvas);
+       
+       
+       //Add event listeners to the canvas.
+       canvas.addKeyListener(this);
+       
+    }
+    public void init(){
+       
+       bg = new GRect(0,0,600,600);
+       bg.setFilled(true);
+       bg.setColor(new Color(0,0,0));
+       this.canvas.add(bg);
+       
+       paddle = new GRect(0,0,this.canvas.getWidth()/6,20);
+       paddle.setFilled(true);
+       paddle.setLocation(canvas.getWidth()/2-paddle.getWidth()/2,canvas.getHeight()-25);
+       paddle.setColor(new Color(0,0,255));
+       canvas.add(paddle);
+        
+       winBoom = new ParticleSystem[100];
+       for(var i = 0; i < winBoom.length; i++){
+           winBoom[i] = new ParticleSystem(0,0,this.canvas);
+        }
+       
+       winText =  new GLabel("You Win",0,0);
+       Color white = new Color(255,255,255);
+       winText.setColor(white);
+    
+        
+        
+       int x=0;
+       int i = 0;
+       for(int y = 0; y<300; y+=40){
+           while(x<600){
+               if(i>99){
+                   break;
+                }
+               int dx = (int)(100+50*Math.sin(i*i)+30*Math.random());
+               bricks[i] = new Brick(x,y,dx,this.canvas);
+               this.slow();
+               x+=dx;
+               if(x>600){
+                   i++;
+                   bricks[i] = new Brick(x,y,600-x,this.canvas);
+               }
+               i++;
+           }
+           
+           x=0;
+       }
+       
+       ball = new GOval(290,290,20,20);
+       ball.setFilled(true);
+       ball.setColor(new Color(255,20,20));
+       canvas.add(ball);
+    }
+    //Delay function
+    private void slow(){
+        try{
+            TimeUnit.MILLISECONDS.sleep(5);
+        }catch(InterruptedException e){
+            System.out.println(e);
+        }
+    }
+    //Nice linear interpolation
+    public double lerp(double a, double b, double t){
+        return a*(1-t)+b*t;
+    }
+    public boolean checkBricks(){
+        int destroyed=0;
+        try{
+            
+        for(var i = 0; i < bricks.length; i++){
+            
+            if(bricks[i].draw==null||bricks[i]==null||bricks[i].draw.getFillColor()==new Color(0,0,0)){
+               destroyed++;
+            }
+        }
+        }catch(NullPointerException e){
+            
+        }
+        if(destroyed-prevDestroyed>=5){
+            prevDestroyed+=destroyed-3;
+            return true;
+        }
+        return false;
+    }
+    
+    //Draw function, puts graphics on canvas and creates animation loop.
+    public void draw(){
+       int frameCount = 10;
+       //Animation loop.
+       double paddleVel = 0;
+       double ballSpeed = 4;
+       double ballAngle = /*Math.random()*Math.PI*2*/-1;
+       double ballSquishX = 20;
+       double ballSquishY = 20;
+       
+       while(true){
+           frameCount++;
+           this.setSize(600,600);
+           this.slow();
+           ballSpeed+=0.001;
+           bg.setSize(this.canvas.getWidth(),this.canvas.getHeight());
+           if(keys[37]){
+               paddleVel-=0.1;
+           }
+           if(keys[39]){
+               paddleVel+=0.1;
+           }
+           
+           if(!paused){
+               paddle.move(paddleVel,0);
+           }
+           paddle.setSize(canvas.getWidth()/6,10);
+           paddle.setLocation(paddle.getX(),canvas.getHeight()-25);
+           
+           if(paddle.getX()+paddle.getWidth()>canvas.getWidth()||paddle.getX()<0){
+               paddleVel*=-1.4;
+           }
+           if(!paused){
+           ball.move(0.1*ballSpeed*Math.cos(ballAngle),0.1*ballSpeed*Math.sin(ballAngle));
+        }
+           if(ball.getX()<0){
+               ballAngle=Math.PI-ballAngle;
+               ballSquishX = 5;
+               
+           }
+           if(ball.getX()+20>canvas.getWidth()){
+               ballAngle=Math.PI-ballAngle;
+               ballSquishX = 5;
+           }
+           if(ball.getY()<0){
+               ballAngle=-ballAngle;
+               ballSquishY = 5;
+            }
+           if(ball.getY()+20>paddle.getY()&&ball.getX()>paddle.getX()&&ball.getX()<paddle.getX()+paddle.getWidth()){
+               ballAngle=-ballAngle+Math.random()/5/**(-paddleVel+1)*/;
+               ballSquishY =15;
+               ball.move(0,-3);
+           }
+            
+           paddleVel/=1.05;
+           int win = bricks.length;
+           
+           for(var i = 0; i < bricks.length; i++){
+               if(bricks[i]!=null&&bricks[i].draw!=null){
+                   
+                   if(bricks[i].isColliding((int)ball.getX(),(int)ball.getY(),(int)ball.getWidth(),(int)ball.getHeight())){
+                       bricks[i].draw.setColor(new Color(0,0,0,0));
+                       bricks[i].draw = null;
+                       if(ball.getX()<bricks[i].x+1||ball.getX()>bricks[i].x+bricks[i].width-1){
+                           ballAngle=Math.PI-ballAngle;
+                           ballSquishX = 5;
+                        }else{
+                           ballAngle = -ballAngle;
+                           ballSquishY = 5;
+                    }
+                   }
+                }else{
+                    win--;
+                    try{
+                        if(bricks[i].globalLifetime>=-60&&!delag){
+                    bricks[i].updateParticles();
+                }
+                }catch(NullPointerException e){
+                    
+                }
+                }
+           }
+           if(win<5){
+               this.canvas.add(winText);
+               for(var i = 0; i < winBoom.length; i++){
+                   winBoom[i].update();
+                }
+            }
+           
+           if(ball.getY()>this.canvas.getHeight()&&this.canvas.getHeight()>100){
+               
+               for(var i = 0; i < bricks.length; i++){
+                   if(bricks[i]!=null&&bricks[i].draw!=null){
+                      bricks[i].draw.setColor(new Color(0,0,0));
+                   }
+                   //bricks[i].draw=null;
+                   bg.sendForward();
+                   
+                   for(var j = 0; i < 100; i++){
+                       
+                   bg.sendForward();
+                    }
+                   return;
+                }
+            }
+           
+            if(this.checkBricks()){
+                int x = 0;
+                try{
+                   for(var j = 0; j < bricks.length; j++){
+                       if(bricks[j]!=null&&bricks[j].draw!=null){
+                            bricks[j].y+=40;
+                            bricks[j].draw.setLocation(bricks[j].x,bricks[j].y);
+                            this.slow();
+                    }
+                    
+                    if(bricks[j]==null||bricks[j].draw==null||bricks[j].draw.getFillColor()==new Color(0,0,0)){
+                        int dx = (int)(100+50*Math.sin(j*j)+30*Math.random());
+                        bricks[j] = new Brick(x,0,dx,this.canvas);
+                        this.slow();
+                        x+=dx;
+                    }
+              }
+            }catch(NullPointerException e){
+                
+            }
+            } 
+       ball.setSize(ballSquishX,ballSquishY);
+       ballSquishX = lerp(ballSquishX,20,0.1);
+       
+       ballSquishY = lerp(ballSquishY,20,0.1);
+       
+       }
+    }
+    //Useful function for circular collisions.
+    public double distance(double x1,double y1,double x2,double y2){
+        return Math.sqrt( (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1) );
+    }
+    
+    
+    
+    /** Event Listener Functions **/
+    public void keyReleased(KeyEvent e){
+        keys[e.getKeyCode()]=false;
+    }
+    public void keyPressed(KeyEvent e){
+        keys[e.getKeyCode()]=true;
+        if(e.getKeyCode()==40){
+            paused=!paused;
+        }
+    }
+    public void keyTyped(KeyEvent e){
+        
+    }
+    
+    /** Run Everything **/
+    public void run(){
+        this.setup();
+        this.init();
+        this.draw();
+    }
+}
+
+class ParticleSystem{
+    int r = (int)(Math.random()*50);
+    GOval particle = new GOval(0, 0,r,r);
+    int x;
+    int y;
+    double xvel;
+    double yvel;
+    double ang;
+    double speed;
+    int lifetime = 20;
+    GCanvas c;
+    public ParticleSystem(int x, int y, GCanvas c){
+        this.x = x;
+        this.y = y;
+        this.particle.setLocation(x,y);
+        this.particle.setFilled(true);
+        this.particle.setColor(new Color(
+            (int)(Math.random()*50+200),(int)(Math.random()*100+100),(int)(Math.random()*50))
+        );
+        this.ang = Math.random()*Math.PI*2;
+        this.speed = Math.random()*5;
+        this.c = c;
+        this.particle.sendForward();
+        
+        this.xvel = this.speed*Math.cos(this.ang);
+        this.yvel = this.speed*Math.sin(this.ang);
+    }
+    public void update(){
+        this.c.add(this.particle);
+        this.particle.move(this.xvel,this.yvel);
+        this.yvel*=1.1;
+        this.speed/=1.01;
+        this.lifetime--;
+        this.particle.setColor(new Color(
+            (int)(Math.random()*50+200),(int)(Math.random()*100+100),(int)(Math.random()*50),Math.max(0,Math.min(255,2*this.lifetime)))
+        );
+    }
+}
+
+class Brick{
+    int x;
+    int y;
+    int width;
+    int h = 40;
+    int height;
+    int padding = 5;
+    Color col;
+    GRect draw;
+    int globalLifetime = 20;
+    ParticleSystem[] particles;
+    public Brick(int xpos,int ypos,int w,GCanvas c){
+        this.x = xpos;
+        this.y = ypos;
+        this.width = w-this.padding;
+        this.height = this.h-this.padding;
+        this.globalLifetime = 0;
+        this.col = new Color(255-(int)(this.y*0.8),(int)(this.y*0.8),0);
+        this.draw = new GRect(this.x,this.y,this.width, this.height);
+        this.draw.setFilled(true);
+        this.draw.setColor(this.col);
+        c.add(this.draw);
+        this.particles = new ParticleSystem[10];
+        for(int i = 0; i < this.particles.length; i++){
+            //this.particles[i]=new ParticleSystem((int)(this.x+this.draw.getWidth()/2),(int)(this.y+this.draw.getHeight()/2),c);
+        }
+        
+    }
+    public void updateParticles(){
+        this.globalLifetime--;
+        for(int i = 0; i < this.particles.length; i++){
+            if(this.particles[i]!=null){
+                this.particles[i].update();
+                if(this.particles[i].lifetime<0){
+                    this.particles[i]=null;
+                }
+            }
+        }
+    }
+    public boolean isColliding(int x0, int y0, int w, int h){
+        if(x0+w>this.x&&y0+h>this.y&&x0<this.x+this.width&&y0<this.y+this.height){
+            return true;
+        }
+        return false;
+    }
+}
+

@@ -1,0 +1,2074 @@
+import java.util.Scanner;
+import java.awt.*;
+import java.awt.image.*;
+import javax.swing.*;
+import java.io.*;
+import javax.swing.JFrame;
+import java.awt.Color;
+import javax.imageio.ImageIO;
+import java.awt.event.*;
+import javax.swing.Timer;
+
+
+/**
+   This is the program's main class.  It serves as an interface from the game's back end to 
+   all of the graphics that are displayed on the screen, in the form of buffered images.
+   
+   It provides many methods for updating this imageData, as well as event listeners, animation
+   loops, and text graphics.
+   
+   */
+public class Canvas extends JFrame implements Runnable, KeyListener, MouseListener{
+    //This is our main image that we display to the screen.
+    BufferedImage image;
+    //Counts how many frames have been displayed, useful for animation purposes.
+    public int frameCount = 0;
+    //Width and height variables.
+    int w, h;
+    
+    //This variable controls the color with which pixel data is set, 
+    //in methods like rect, circe, through the set method.
+    public Color fill = new Color(255,255,255);
+    
+    //This is an interface to the game class, which stores all of the information about the
+    //Levels, ghosts, etc.
+    Game g;
+
+    //Stores the state of the game, and whether or not it has been won.
+    boolean win = false;
+    
+    //Initialize some glo
+    BufferedImage village;
+    BufferedImage ghost;
+    BufferedImage cemetery;
+    BufferedImage finalImage;
+
+    //Stores the font which I import.
+    Font ringbearer;
+
+    //Variable used to assist with the scrolling text.
+    int secondCount = 0;
+    
+    //Stores all key presses.
+    boolean[] keys = new boolean[200];
+    
+    //Stores spark particle animations.
+    Spark sparks[] = new Spark[2000];
+    
+    //Intro, tutorial, and plot.
+    public Graphics2D intro(Graphics g){
+        //Create graphics image for double buffer.
+        Graphics2D g2 = finalImage.createGraphics();
+        super.paint(g2);
+        
+        //Background.
+        g2.setColor(new Color(0,0,0));
+        g2.fillRect(0,0, 410, 600);
+
+        g2.setColor(new Color(210,190,100));
+        g2.setFont(ringbearer);
+        
+        //Scene 1
+        if(frameCount<800){
+
+            drawCenteredString(g2, "Your village", new Rectangle(0,300-frameCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "is being terrorized by", new Rectangle(0,350-frameCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "demonic spirits.", new Rectangle(0,400-frameCount, 400, 100) , ringbearer);
+
+            drawCenteredString(g2, "As the local mage,", new Rectangle(0,500-frameCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "you must save", new Rectangle(0,550-frameCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "your people!", new Rectangle(0,600-frameCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "You go to the cemetery", new Rectangle(0,700-frameCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "to investigate.", new Rectangle(0,750-frameCount, 400, 100) , ringbearer);
+
+            g2.drawImage(village.getScaledInstance(400, 350, Image.SCALE_SMOOTH), 10, 250, null);
+            double parametricPosX = 200+100*Math.cos(frameCount/25.0);
+            double parametricPosY = 400+100*Math.sin(frameCount/31.0);
+            g2.drawImage(ghost.getScaledInstance(50+(int)(10*Math.sin(frameCount/100)), 50+(int)(10*Math.sin(frameCount/100)), Image.SCALE_SMOOTH),(int)parametricPosX, (int)parametricPosY, null);
+            parametricPosX = 200+100*Math.cos(frameCount/29.0);
+            parametricPosY = 400+100*Math.sin(frameCount/13.0);
+            g2.drawImage(ghost.getScaledInstance(40+(int)(20*Math.sin(frameCount/90+10)), 40+(int)(20*Math.sin(frameCount/90+10)), Image.SCALE_SMOOTH),(int)parametricPosX, (int)parametricPosY, null);
+
+            //Scene 2
+        }else if(frameCount<1700){
+            drawCenteredString(g2, "In the distance, you see", new Rectangle(0,1100-frameCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "a dilapidated mausoleum,", new Rectangle(0,1150-frameCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "beckoning you to enter.", new Rectangle(0,1200-frameCount, 400, 100) , ringbearer);
+            g2.drawImage(cemetery.getScaledInstance(800, 695, Image.SCALE_SMOOTH), -200, 50, null);
+            g2.setColor(new Color(255,255,255));
+            if(frameCount<1400){
+                g2.fillRect(frameCount-1200, 350, 16, 16);
+            }else{
+                g2.fillRect(200, frameCount-1400+350,16,16);
+            }
+        }else{
+
+            if(this.g.levelNum==0){
+                drawCenteredString(g2, "The Doors of the", new Rectangle(0,1900-frameCount, 400, 100) , ringbearer);
+                drawCenteredString(g2, "mausoleum slam shut,", new Rectangle(0,1950-frameCount, 400, 100) , ringbearer);
+                drawCenteredString(g2, "behind you. There is", new Rectangle(0,2000-frameCount, 400, 100) , ringbearer);
+                drawCenteredString(g2, "only one way: forwards.", new Rectangle(0,2050-frameCount, 400, 100) , ringbearer);
+
+                drawCenteredString(g2, "Arrow keys to move.", new Rectangle(0,2150-frameCount, 400, 100) , ringbearer);
+                drawCenteredString(g2, "Space to dodge.", new Rectangle(0,2200-frameCount, 400, 100) , ringbearer);
+
+                drawCenteredString(g2, "Collect Potions", new Rectangle(0,2300-frameCount, 400, 100) , ringbearer);
+
+                drawCenteredString(g2, "and shift to use them.", new Rectangle(0,2350-frameCount, 400, 100) , ringbearer);
+            }
+            if(this.g.levelNum==1){
+                drawCenteredString(g2, "Beware of Ghosts!", new Rectangle(0,30+200-secondCount, 400, 100) , ringbearer);
+
+                drawCenteredString(g2, "Click to shoot", new Rectangle(0,60+200-secondCount, 400, 100) , ringbearer);
+                drawCenteredString(g2, "fireballs at them.", new Rectangle(0, 90+200-secondCount, 400, 100) , ringbearer);
+
+                drawCenteredString(g2, "They travel to your", new Rectangle(0, 120+200-secondCount, 400, 100) , ringbearer);
+                drawCenteredString(g2, "mouse.", new Rectangle(0, 150+200-secondCount, 400, 100) , ringbearer);
+
+            }
+            if(this.g.levelNum==2){
+                drawCenteredString(g2, "Ice is slippery!", new Rectangle(0,30+200-secondCount, 400, 100) , ringbearer);
+drawCenteredString(g2, "It also freezes", new Rectangle(0,70+200-secondCount, 400, 100) , ringbearer);
+drawCenteredString(g2, "your fireballs.", new Rectangle(0,100+200-secondCount, 400, 100) , ringbearer);
+
+
+            }
+            secondCount++;
+        }
+        
+        if(win){
+            drawCenteredString(g2, "You defeated the", new Rectangle(0,30+200-secondCount, 400, 100) , ringbearer);
+            
+            drawCenteredString(g2, "undead necromancer!", new Rectangle(0,60+200-secondCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "Ghosts no longer", new Rectangle(0,100+200-secondCount, 400, 100) , ringbearer);
+            
+            drawCenteredString(g2, "plague your town.", new Rectangle(0,120+200-secondCount, 400, 100) , ringbearer);
+            
+            drawCenteredString(g2, "Congrats on the win!", new Rectangle(0,160+200-secondCount, 400, 100) , ringbearer);
+            drawCenteredString(g2, "Here is a new spell.", new Rectangle(0,200+200-secondCount, 400, 100) , ringbearer);
+
+        }
+        
+        //g.drawImage(finalImage,0,0,this);
+        return g2;
+    }
+
+    public void drawCenteredString(Graphics g, String text, Rectangle rect, Font font) {
+        // Get the FontMetrics
+        FontMetrics metrics = g.getFontMetrics(font);
+        // Determine the X coordinate for the text
+        int x = rect.x + (rect.width - metrics.stringWidth(text)) / 2;
+        // Determine the Y coordinate for the text (note we add the ascent, as in java 2d 0 is top of the screen)
+        int y = rect.y + ((rect.height - metrics.getHeight()) / 2) + metrics.getAscent();
+        // Set the font
+        g.setFont(font);
+        // Draw the String
+        g.drawString(text, x, y);
+    }
+
+    public void initialize( ) {
+
+        try{
+            //create the font to use. Specify the size!
+            ringbearer = Font.createFont(Font.TRUETYPE_FONT, new File("C:/Users/9694799554/Desktop/Ringbearer/RINGM___.TTF")).deriveFont(28f);
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            //register the font
+            ge.registerFont(ringbearer);
+
+        }catch(IOException e){}catch(FontFormatException e){}
+
+        try{
+            village = ImageIO.read(new File("C:/Users/9694799554/Desktop/javaTextures/village.jpg"));
+            ghost = ImageIO.read(new File("C:/Users/9694799554/Desktop/javaTextures/ghostR.png"));
+            cemetery = ImageIO.read(new File("C:/Users/9694799554/Desktop/javaTextures/Cemetery-Tileset.png"));
+        }catch(IOException err){}
+        addKeyListener(this);
+        addMouseListener(this);
+        w = 400;
+        h = 400;
+        int length = w * h;
+        image = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        finalImage = new BufferedImage(w+10, 600, BufferedImage.TYPE_INT_RGB);
+
+        //frame1 = ImageIO.read(600,600, new File("C:/Users/9694799554/Desktop/javaTextures/stoneTex.csv.txt"));
+        try{
+            g = new Game(this);
+        }catch(IOException err){}
+        /*
+        for (int x = 0; x < w; x++) {
+        for (int y = 0; y < h; y++) {
+        image.setRGB(x, y, new Color(50,50,100).getRGB());
+        }
+        }
+         */
+        new Thread(this).start( );
+    }
+
+    public void run( ) {
+
+        while (true) {
+            frameCount+=2;
+            //if(frameCount>1000){
+            draw();
+
+            //}
+
+            repaint( );
+            try { Thread.sleep(1000 / 30); }
+            catch( InterruptedException e ) {  }
+        }
+    }
+
+    public void paint(Graphics g0) {
+        if (image == null) initialize( );
+        Graphics2D g2 = (Graphics2D)(g0);
+        g2 = intro(g2);
+        
+
+        if(frameCount>1700){
+            g2.drawImage(image, 10, 190, this);
+        }
+
+        g0.drawImage(finalImage,0,0,this);
+        //g.drawImage(finalImage,0,0,this);
+    }
+
+    public void main() {
+
+        //JFrame f = new JFrame("StaticGenerator");
+        //f.getContentPane().add(new Canvas( ));
+        addKeyListener(this);
+        setSize(420, 600);
+        setLocation(10, 100);
+        addKeyListener(this);
+        addWindowListener(new WindowAdapter( ) {
+                public void windowClosing(WindowEvent e) {
+                    System.exit(0);
+                }
+            });
+        setVisible(true);
+    }
+
+    public void keyReleased(KeyEvent e){
+        keys[e.getKeyCode()]=false;
+    }
+    int a = 0;
+    public void keyPressed(KeyEvent e){
+        keys[e.getKeyCode()]=true;
+        if((e.getKeyCode()==39)&& frameCount<2000){
+            frameCount+=10;
+        }
+        if((e.getKeyCode()==10)){
+            a=a==4?1:a+1;
+            g.levelNum+=a==3?1:0;
+            g.level = g.levels[g.levelNum];
+            player.setSpawn();
+            for(var i = 0;  i < g.ghosts.length; i++){
+                g.ghosts[i] = null;
+            }
+            g.setupLevel();
+        }
+    }
+
+    public void keyTyped(KeyEvent e){
+
+    }
+
+    public void mouseClicked(MouseEvent event){
+    }
+
+    public void mousePressed(MouseEvent event) {
+        double xpos = event.getX();
+        double ypos = event.getY()-200;
+        double xdist = xpos-(player.x-Camera.x);
+        double ydist = ypos-(player.y-Camera.y);
+        double magnitude = Canvas.distance(player.x-Camera.x, player.y-Camera.y, xpos, ypos);
+        //bugfixes by Benjamin Kirby: My little brother
+        player.castSpell(5*xdist/magnitude, 5*ydist/magnitude);
+    };
+
+    public void mouseReleased(MouseEvent event) {};
+
+    public void mouseEntered(MouseEvent event) {};
+
+    public void mouseExited(MouseEvent event) {};
+
+    public void set(int x, int y, Color color){
+        if(x<w&&y<h&&x>0&&y>0){
+            if(opacity!=1){
+                Color firstColor = new Color(image.getRGB(x,y));
+                int lerpR = (int)(firstColor.getRed()+(color.getRed()-firstColor.getRed())*opacity);
+                int lerpG = (int)(firstColor.getGreen()+(color.getGreen()-firstColor.getGreen())*opacity);
+                int lerpB = (int)(firstColor.getBlue()+(color.getBlue()-firstColor.getBlue())*opacity);
+                color = new Color(lerpR, lerpG, lerpB);
+            }
+            image.setRGB(x, y, color.getRGB());
+
+        }
+    }
+
+    public void rect(int x0, int y0, int width, int height){
+        for(int x=0; x<width; x++){
+            for(int y=0; y<height; y++){
+                set(x+x0, y+y0, fill);
+            }
+        }
+    }
+
+    public void circle(int x0, int y0, int radius){
+        if(x0+radius<0||x0-radius>w||y0+radius<0||y0-radius>h){
+            return;
+        }
+        for(int x=-radius; x<radius; x++){
+            for(int y=-radius; y<radius; y++){
+                if(x*x+y*y<radius*radius){
+                    set(x+x0, y+y0, fill);
+                }
+            }
+        }
+    }
+
+    public void background(int r, int g, int b){
+        for(int x = 0; x < w; x++){
+            for(int y = 0; y < h; y++){
+                set(x, y, new Color(r, g, b));
+            }
+        }
+    }
+
+    static double distance(double x1, double y1, double x2, double y2){
+        return Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+    }
+
+    
+    public double opacity = 1;
+    Player player = new Player(this);
+    public Canvas(){
+        main();
+    }
+
+    public void drawTile(int x0, int y0, int[] tex){
+        if(x0>w || y0> h || x0<-20 || y0<-20){
+            return;
+        }
+        int tileWidth = 20;
+        for (int x = 0; x < tileWidth; x++) {
+            for (int y = 0; y < tileWidth; y++) {
+                int targetIndex = 3*(y*tileWidth+x%tileWidth);
+                Color c = new Color(tex[targetIndex], tex[targetIndex+1], tex[targetIndex+2]);
+                //if(Math.random()<0.9){
+                set(x+x0, y+y0, c);
+                //}
+            }
+        }
+    }
+
+    public void drawSprite(int x0, int y0, int[] tex, boolean shift){
+
+        int tileWidth = !shift?20:67;
+        for (int x = 0; x < tileWidth; x++) {
+            for (int y = 0; y < 60+(shift?20:0); y++) {
+                int targetIndex = 4*(y*tileWidth+x%tileWidth);
+                opacity = tex[targetIndex+3]/255;
+                Color c = new Color(tex[targetIndex], tex[targetIndex+1], tex[targetIndex+2]);
+                //if(Math.random()<0.9){
+                set(x+x0, y+y0, c);
+                //}
+            }
+        }
+        opacity = 1;
+    }
+
+    public void parseLevel(String[] lvl){
+        int xpos, ypos;
+        for(int x = 0; x< 80; x++){
+            for(int y = 0; y < 80; y++){
+                xpos = x*20-Camera.x;
+                ypos = y*20-Camera.y;
+
+                if(lvl[y].charAt(x)==':'){
+                    drawTile(xpos, ypos, g.lavaTex);
+                    if(Math.random()<0.9) continue;
+                    addSpark(xpos+(int)(20*Math.random()), ypos+(int)(20*Math.random()), 3, 1);
+                }else if(lvl[y].charAt(x)=='*'){
+                    drawTile(xpos, ypos, g.wallTex);
+                }else if(lvl[y].charAt(x)=='.'){
+                    drawTile(xpos, ypos, g.iceTex);
+                }else if(lvl[y].charAt(x)=='@'){
+                    drawTile(xpos, ypos, g.fissureTex);
+                }else{
+                    drawTile(xpos, ypos, g.stoneTex);
+                }
+
+                if(lvl[y].charAt(x)=='$'){
+                    drawSprite(xpos, ypos, g.potion, false);
+                }
+            }
+        }
+    }
+
+    void addSpark(int x, int y, int GRAVITY, int amt){
+        if(x<0||x>400||y<0||y>400) return;
+
+        for(var i = 0; i < sparks.length; i++){
+            if(sparks[i]==null){
+                sparks[i] = new Spark(this, x, y, GRAVITY);
+
+                amt--;
+            }
+            if(amt<0) return;
+        }
+    }
+
+    void draw(){
+        parseLevel(g.level);
+        fill = new Color(255,0,0);
+        rect(0,390,(int)(4*player.health)-1,10);
+
+        for(int i = 0; i < sparks.length; i++){
+            if(sparks[i]==null) continue;
+            sparks[i].update();
+
+            //System.out.println(sparks[i]);
+            if(sparks[i].lifetime<=0) sparks[i] = null;
+        }
+        player.update();
+
+        for(int i = 0; i < g.ghosts.length; i++){
+            if(g.ghosts[i]!=null){
+                g.ghosts[i].update();
+            }
+        }
+        if(g.bossBattle!=null){
+            g.bossBattle.update();
+            if(g.bossBattle.health<=0){
+                addSpark((int)g.bossBattle.x-Camera.x, (int)g.bossBattle.y-Camera.y, 0, 2000);
+                g.bossBattle = null;
+                win = true;
+                Fireball.cooldown = 0;
+                secondCount = 0;
+            }
+        }
+
+    }
+}
+
+class Particle{
+    double x = 0; 
+    double y = 0;
+    double xvel = 0;
+    double yvel = 0;
+    Canvas c;
+    public Particle(Canvas c){
+        this.c = c;
+    }
+
+    public void update(){
+        x+=xvel;
+        y+=yvel;
+    }
+}
+
+class GhostParticle extends Particle{
+    Ghost ghost;
+    double ghostX;
+    double x = 0;
+    double ghostY;
+    double xvel = 0;
+    double yvel = 0;
+    double y = 0;
+    double offset = 10*Math.random();
+    public GhostParticle(Canvas c, Ghost ghost){
+        super(c);
+        this.ghost = ghost;
+        this.ghostX = ghost.x;
+        x = ghost.x;
+        this.ghostY = ghost.y;
+        y = ghost.y;
+    }
+
+    public void update(){
+        ghostX = ghost.x;
+        ghostY = ghost.y;
+        //super.update();
+        c.fill = new Color(100, 240, 200);
+        c.opacity = 0.1*Math.cos(c.frameCount*0.015+offset)+0.3;
+        c.circle((int)x-Camera.x, (int)y-Camera.y,8);
+        c.opacity = 0.2*Math.sin(c.frameCount*0.02+offset)+0.4;
+        c.circle((int)x-Camera.x, (int)y-Camera.y,4);
+        double targetX = (ghostX+32*(Math.cos(0.035*c.frameCount+offset)));
+        double targetY = (ghostY+20*(Math.sin(0.015*c.frameCount+offset)));
+        double magnitude = Canvas.distance(x, y, targetX, targetY);
+
+        if(magnitude == 0){
+            c.opacity = 1;
+            return;
+        }
+        x = x+Math.sin(targetX-x)+(targetX-x)*(0.03+0.03*Math.random());
+        y = y+Math.sin(targetY-y)+(targetY-y)*(0.03+0.03*Math.random());
+        c.opacity = 1;
+    }
+}
+
+class Spark{
+    Canvas c;
+    double x;
+    double y;
+    double GRAVITY;
+    int col = (int)(150+Math.random()*105);
+    int col2 = (int)(30+Math.random()*(col-30));
+    double lifetime = (int)(20+30*Math.random());
+    int size = (int)(1+3*Math.random());
+    double ang = Math.random()*Math.PI*2;
+    double speed = Math.random()*5;
+    double xvel = speed*Math.cos(ang);
+    double yvel = speed*Math.sin(ang);
+    int d=1;
+    public Spark(Canvas c, double x, double y, double GRAVITY){
+        this.c = c;
+        this.x = x;
+        this.y = y;
+        this.GRAVITY = GRAVITY;
+        if(GRAVITY>0){
+            yvel = -(yvel*yvel)/5;
+            xvel/=5;
+            GRAVITY+=2;
+            d=2;
+        }
+        if(GRAVITY<0){
+            xvel = -0.5*c.player.xvel;
+            yvel = -0.5*c.player.yvel-Math.random();
+            y+=40+10*Math.random()-5;
+            x+=40+10*Math.random()-5;
+            lifetime/=3;
+        }
+
+    }
+
+    void draw(){
+
+        if(GRAVITY<0){
+            c.fill = new Color(100,90,80);
+            c.opacity = Math.max(Math.min(1,lifetime/30),0);
+            c.circle((int)x, (int)y, 3);
+            c.opacity = 1;
+            return;
+        }
+
+        c.fill = new Color(col, col2, 20);
+
+        c.opacity = lifetime/50;
+        c.circle((int)x,(int)y, 1);
+        if(d==2){
+            c.fill = new Color(255-((255-col)/2), col2, (int)(col2/1.5));
+            c.opacity/=3;
+            c.circle((int)x, (int)y, 2);
+            c.fill = new Color(255-((255-col)/2), col2, (int)(col2/1.5));
+            c.opacity/=2;
+            c.circle((int)x, (int)y, 5);
+        }
+
+        c.opacity = 1;
+    }
+
+    public void update(){
+        x+=xvel;
+        y+=yvel;
+        lifetime--;
+        y+=GRAVITY/5;
+        draw();
+    }
+}
+
+class Entity{
+    double x = 21;
+    double y = 21;
+    double xvel = 0; 
+    double yvel = 0;
+    double accel = 0.3;
+    double maxManhattanVel = 30;
+    double health = 100;
+    Canvas c;
+    int potionCount = 0;
+    public Entity(Canvas c, int x, int y){
+        this.c = c;
+        this.x = x;
+        this.y = y;
+    }
+
+    public Entity(){}
+
+    void update(){
+        x+=Math.min(xvel, maxManhattanVel);
+        y+=Math.min(yvel, maxManhattanVel);
+    }
+
+    void applyFriction(double coefficient){
+        xvel/=coefficient;
+        yvel/=coefficient;
+    }
+
+    public char getBlock(){
+        if(x<0||y<0) return ' ';
+        return Game.level[(int)(y/20)].charAt((int)(x/20));
+    }
+
+    void checkCollisions(){
+        if(getBlock() == '$'){
+            potionCount++;
+            String targetStr = c.g.level[(int)(y/20)];
+            c.g.level[(int)(y/20)] = targetStr.substring(0, (int)(x/20))+" "+targetStr.substring((int)(x/20)+1);
+        }
+        if(getBlock() == '*'){
+            xvel = -xvel;
+            yvel = -yvel;
+            return;
+        }
+
+        if(c.g.blockAt((int)(x+8), (int)(y))== '*'){
+            x= 20*((int)x/20)+12;
+            xvel=Math.min(xvel,0);
+        }
+        if(c.g.blockAt((int)(x-8), (int)(y))== '*'){
+            x= 20*((int)x/20)+8;
+            xvel=Math.max(xvel,0);
+        }
+        if(c.g.blockAt((int)(x), (int)(y+8))== '*'){
+            y= 20*((int)y/20)+12;
+            yvel=Math.min(yvel,0);
+        }
+        if(c.g.blockAt((int)(x), (int)(y-8))== '*'){
+            y= 20*((int)y/20)+8;
+            yvel=Math.max(yvel,0);
+        }
+    }
+}
+
+class Player extends Entity{
+    int width = 16, height = 16;
+    double spawnX = x;
+    double spawnY = y;
+    Fireball spellsFired[] = new Fireball[80];
+    int dodgeRecharge = 100;
+    int[] lastPos = Game.sprite5;
+    public Player(Canvas c){
+        this.c = c;
+        setSpawn();
+    }
+
+    void setSpawn(){
+        health = 100;
+        for(int x0 = 0; x0 < c.g.level.length; x0++){
+            for(int y0 = 0; y0 < c.g.level.length; y0++){
+                if(c.g.level[y0].charAt(x0)=='?'){
+                    if(c.g!=null){
+                        c.g.setupLevel();
+                    }
+                    x = x0*20+8;
+                    y = y0*20+8;
+                    spawnX = x0*20+8;
+                    spawnY = y0*20+8;
+                    return;
+                }
+            }    
+        }
+        c.g.setupLevel();
+    }
+
+    void draw(){
+        c.fill = new Color(255,255,255);
+        int xpos = (int)(x-width/2)-Camera.x;
+        int ypos = (int)(y-height/2)-Camera.y-16;
+        //c.rect((int)(x-width/2)-Camera.x, (int)(y-height/2)-Camera.y, width, height);
+
+        if(c.keys[38]&&c.keys[39]){
+            c.drawSprite(xpos, ypos, Game.sprite2, false); 
+            lastPos = Game.sprite2;
+        }else if(c.keys[39]&&c.keys[40]){ 
+            c.drawSprite(xpos, ypos, Game.sprite4, false); 
+            lastPos = Game.sprite4;
+        }else if(c.keys[40]&&c.keys[37]){ 
+            c.drawSprite(xpos, ypos, Game.sprite6, false); 
+            lastPos = Game.sprite6;
+        }else if(c.keys[37]&&c.keys[38]){ 
+            c.drawSprite(xpos, ypos, Game.sprite8, false); 
+            lastPos = Game.sprite8;
+        }else if(c.keys[38]){ 
+            c.drawSprite(xpos, ypos, Game.sprite1, false); 
+            lastPos = Game.sprite1;
+        }else if(c.keys[39]){ 
+            c.drawSprite(xpos, ypos, Game.sprite3, false); 
+            lastPos = Game.sprite3;
+        }else if(c.keys[40]){ 
+            c.drawSprite(xpos, ypos, Game.sprite5, false); 
+            lastPos = Game.sprite5;
+        }else if(c.keys[37]){ 
+            c.drawSprite(xpos, ypos, Game.sprite7, false); 
+            lastPos = Game.sprite7;
+        }else{ 
+            c.drawSprite(xpos, ypos, lastPos, false); 
+        }
+
+        for(var i = 0; i < potionCount; i++){
+            c.drawSprite(380,360-30*i,c.g.potion, false);
+        }
+    }
+
+    void update(){
+        double pastAccel = accel;
+        draw();
+        super.update();
+        if(health<=0){
+            x = spawnX;
+            y = spawnY;
+            health = 100;
+        }
+        if(getBlock() == ':'){
+            health-=5;
+        }
+        if(getBlock()=='.'){
+            super.applyFriction(1.001);
+            accel = 0.05;
+        }else{
+            super.applyFriction(1.1);
+        }
+
+        if(getBlock() == '@'){
+
+            c.g.levelNum++;
+            c.secondCount = 0;
+            c.g.level = c.g.levels[c.g.levelNum];
+            setSpawn();
+        }
+
+        Camera.moveToPoint((int)x-200,(int)y-200, 0.04);
+        if(c.keys[40]||c.keys[83]){
+            this.yvel+=accel;
+        }
+        if(c.keys[38]||c.keys[87]){
+            this.yvel-=accel;
+        }
+        if(c.keys[37]||c.keys[65]){
+            this.xvel-=accel;
+        }
+        if(c.keys[39]||c.keys[68]){
+            this.xvel+=accel;
+        }
+        accel = pastAccel;
+        checkCollisions();
+        Fireball.recharge--;
+        dodgeRecharge--;
+        for(var i = 0; i < spellsFired.length; i++){
+
+            if(spellsFired[i]!=null){
+
+                spellsFired[i].update();
+                if(spellsFired[i].isDead){
+                    c.addSpark((int)(spellsFired[i].particle.x-Camera.x), (int)(spellsFired[i].particle.y-Camera.y), 0, 300);
+                    spellsFired[i] = null;
+
+                }
+            }
+        }
+
+        if(c.keys[16]&&potionCount>0){
+            potionCount--;
+            c.keys[16]=false;
+            health=Math.min(health+50, 100);
+        }
+
+        if(c.keys[32]&&dodgeRecharge<=0){
+            xvel*=3;
+            yvel*=3;
+            if(getBlock()=='.'){
+                xvel/=2;
+                yvel/=2;
+            }
+            dodgeRecharge = 100;
+        }
+
+        if(c.distance(0,0,xvel, yvel)>3){
+            c.addSpark((int)(x-Camera.x+10*Math.random()-5), (int)(y-Camera.y+10+10*Math.random()-5), -1, 1);
+        }
+        if(c.distance(0,0,xvel, yvel)>6){
+            c.addSpark((int)(x-Camera.x+10*Math.random()-5), (int)(y-Camera.y+10+10*Math.random()-5), -1, 2);
+        }
+    }
+
+    void castSpell(double xvel, double yvel){
+
+        for(var i = 0; i < spellsFired.length; i++){
+            if(spellsFired[i]==null&&Fireball.recharge <=0){
+                if(!c.win){
+                spellsFired[i] = new Fireball(c, (int)x, (int)y, xvel, yvel);
+                break;
+            }else{
+                
+                spellsFired[i] = new Fireball(c, (int)x, (int)y, 20*Math.random()-10, 20*Math.random()-10);
+            }
+                
+            }
+        }
+    }
+
+}
+
+class Boss extends Entity{
+    int detectionRadius = 500;
+    int health = 1000;
+    int maxManhattanVel = 1;
+    int targetDistance = 130;
+    Bullet[] bullets = new Bullet[100];
+    int attackModes = 10;
+    int currentAttackMode = 0;
+    public Boss(Canvas c, double x, double y){
+        this.c = c;
+        this.x = x;
+        this.y = y;
+    }
+
+    public void draw(){
+        c.drawSprite((int)(x-33-Camera.x), (int)(y-40-Camera.y), c.g.boss, true);
+        c.fill = new Color(255,50,50);
+        c.opacity = 0.7;
+        c.rect((int)(x-40-Camera.x), (int)(y-50-Camera.y), (int)(80*health/1000), 10);
+        c.opacity = 1;
+    }
+
+    public void update(){
+        super.update();
+        super.checkCollisions();
+
+        x+=xvel;
+        y+=yvel;
+        Camera.moveToPoint((int)x, (int)y, 0.01);
+        double magnitude = Canvas.distance(x, y, c.player.x, c.player.y);
+        if(magnitude<detectionRadius&&magnitude>targetDistance){
+            targetPlayer();
+        }
+        if(magnitude<targetDistance-20){
+            antiTarget();
+        }
+
+        for(var i = 0; i < bullets.length; i++){
+            if(bullets[i]==null) continue;
+            bullets[i].update();
+
+            if(bullets[i].isDead||bullets[i].lifetime<0){
+                bullets[i]=null;
+            }
+        }
+
+        if(currentAttackMode==1){
+            Bullet.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&Bullet.recharge <=0){
+
+                    bullets[i] = new Bullet(c, (int)x, (int)y, ((c.player.x-x)/Canvas.distance(x, y, c.player.x, c.player.y)), ((c.player.y-y)/Canvas.distance(x, y, c.player.x, c.player.y)));
+                    break;
+                }
+            }
+        }else if(currentAttackMode==2){
+            PhantomMine.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&PhantomMine.recharge <=0){
+
+                    bullets[i] = new PhantomMine(c, (int)x, (int)y);
+                    break;
+                }
+            }
+        }else if(currentAttackMode == 3){
+            Turret.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&Turret.recharge <=0){
+
+                    bullets[i] = new Turret(c, (int)x, (int)y, ((c.player.x-x)/Canvas.distance(x, y, c.player.x, c.player.y)), ((c.player.y-y)/Canvas.distance(x, y, c.player.x, c.player.y)));
+                    break;
+                }
+            }
+        }else if(currentAttackMode == 4){
+
+            for(double ang=0; ang<Math.PI*2; ang+=0.4){
+                for(int i = 0; i < bullets.length; i++){
+                    if(bullets[i]==null){
+                        double s0 = Math.random()*20;
+                        double shift = (ang+s0)/s0;
+                        bullets[i] = new Bullet(c, (int)x, (int)y, Math.cos(ang)*shift, Math.sin(ang)*shift);
+                        break;
+                    }
+                }
+            }
+
+            currentAttackMode++;
+        }else if(currentAttackMode == 5){
+            Missile.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&Missile.recharge <=0){
+
+                    bullets[i] = new Missile(c, (int)x, (int)y, Math.random(), Math.random());
+                    break;
+                }
+            }
+        }else if(currentAttackMode==6){
+            Bomb.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&Bomb.recharge <=0){
+
+                    bullets[i] = new Bomb(c, (int)x, (int)y);
+                    break;
+                }
+            }
+        }else if(currentAttackMode == 7){
+            Meteor.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&Meteor.recharge <=0){
+
+                    bullets[i] = new Meteor(c, (int)x, (int)y,((c.player.x-x)/Canvas.distance(x, y, c.player.x, c.player.y)), ((c.player.y-y)/Canvas.distance(x, y, c.player.x, c.player.y)));
+                    break;
+                }
+            }
+        }else if(currentAttackMode == 8){
+            Meteor.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&Meteor.recharge <=0){
+
+                    bullets[i] = new Meteor(c, (int)x, (int)y,Math.random(), Math.random());
+                    break;
+                }
+            }
+        }else if(currentAttackMode == 9){
+            Meteor.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&Meteor.recharge <=0){
+
+                    bullets[i] = new Meteor(c, (int)x, (int)y,((c.player.x-x)/Canvas.distance(x, y, c.player.x, c.player.y)), ((c.player.y-y)/Canvas.distance(x, y, c.player.x, c.player.y)));
+                    break;
+                }
+            }
+        }else if(currentAttackMode == 10){
+            Meteor.recharge--;
+            for(var i = 0; i < bullets.length; i++){
+                if(bullets[i]==null&&Meteor.recharge <=0){
+
+                    bullets[i] = new Meteor(c, (int)x, (int)y,Math.random(), Math.random());
+                    break;
+                }
+            }
+        }
+        changeAttackMode(0.02);
+        draw();
+    }
+
+    private void changeAttackMode(double mercuriality){
+        if(Math.random()<mercuriality&&(currentAttackMode!=5||Math.random()<0.5)){
+            currentAttackMode++;
+        }
+        if(currentAttackMode>attackModes){
+            currentAttackMode = 0;
+        }
+    }
+
+    public void targetPlayer(){
+        double magnitude = Canvas.distance(x, y, c.player.x, c.player.y);
+
+        if(magnitude < 30){
+            c.player.health-=1;
+        }
+        xvel+=0.5*(c.player.x-x)/magnitude+(Math.random()*(1/yvel));
+        yvel+=0.5*(c.player.y-y)/magnitude+(Math.random()*(1/xvel));
+        xvel = xvel<-1.8?-1.8:xvel;
+        xvel = xvel>1.8?1.8:xvel;
+        yvel = yvel<-1.8?-1.8:yvel;
+        yvel = yvel>1.8?1.8:yvel;
+
+    }
+
+    public void antiTarget(){
+        double magnitude = Canvas.distance(x, y, c.player.x, c.player.y);
+
+        xvel-=0.1*(c.player.x-x)/magnitude;
+        yvel-=0.1*(c.player.y-y)/magnitude;
+    }
+}
+
+class Ghost extends Entity{
+    static int detectionRadius = 180;
+    double offset = Math.random(), change = Math.random();
+    int index;
+    int damage = 5;
+    GhostParticle particles[] = new GhostParticle[8];
+    Bullet bullets[] = new Bullet[100];
+    public Ghost(Canvas c, int x, int y, int index){
+        super(c, x, y);
+        this.index = index;
+        for(var i = 0; i < particles.length; i++){
+            particles[i] = new GhostParticle(c, this);
+        }
+    }
+
+    public void update(){
+        if(health<=0){
+            return;
+        }
+        super.update();
+        super.applyFriction(1.08);
+        draw();
+        targetPlayer();
+        checkCollisions();
+        for(GhostParticle p : particles){
+            p.update();
+        }
+    }
+
+    public void draw(){
+        c.opacity = Math.cos(c.frameCount*0.05)*0.2+0.3;
+        int xpos = (int)x-Camera.x;
+        int ypos = (int)y-Camera.y;
+        c.fill = new Color(100, 240, 200);
+        c.circle(xpos,ypos,16);
+        c.circle(xpos,ypos,14);
+        c.circle(xpos,ypos,12);
+        c.circle(xpos,ypos,10);
+        c.opacity = 1;
+    }
+
+    public void targetPlayer(){
+        double magnitude = Canvas.distance(x, y, c.player.x, c.player.y);
+        if(magnitude>Ghost.detectionRadius){
+
+            //xvel+=0.2*Math.random()-0.1+Math.cos(change*0.6*c.frameCount+offset);
+            //yvel+=0.2*Math.random()-0.1+Math.sin(0.4*c.frameCount+change*offset);
+            return;
+        }
+        if(magnitude < 15){
+            c.player.health-=5;
+        }
+        xvel+=(0.2+Math.random()/5)*(c.player.x-x)/magnitude;
+        yvel+=(0.2+Math.random()/5)*(c.player.y-y)/magnitude;
+    }
+}
+
+class Bullet{
+    int x;
+    int y;
+    double xvel;
+    double yvel;
+    int damage=5;
+    boolean isDead = false;
+    Canvas c;
+    static int cooldown = 30;
+    int lifetime = 50;
+    static int recharge = 0;
+    public Bullet(Canvas c, int x, int y, double xvel, double yvel){
+        this.x = x;
+        this.y = y;
+        this.xvel = xvel;
+        this.yvel = yvel;
+        this.c = c;
+        Bullet.recharge = 30;
+    }
+
+    void draw(){
+        c.opacity = Math.max(0,Math.min(1, lifetime/100.0));
+        c.fill = new Color(0,0,0);
+        c.circle(x-Camera.x,y-Camera.y,5);
+
+        c.opacity = 0.5*Math.min(1,(lifetime+450)/50);
+
+        c.circle(x-Camera.x,y-Camera.y,7);
+        c.opacity = 1;
+    }
+
+    public void update(){
+        if(c.g.blockAt(x, y)=='*'){
+            isDead = true;
+
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 30);
+        }
+        if(Canvas.distance(x, y, c.player.x, c.player.y)<20){
+            c.player.health-=damage;
+
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 30);
+            isDead = true;
+        }
+        x+=8*xvel;
+        y+=8*yvel;
+        lifetime--;
+        draw();
+    }
+}
+
+class PhantomMine extends Bullet{
+    int damage=15;
+    static int cooldown = 30;
+    static int recharge = 0;
+    double offset = Math.random()*6;
+    public PhantomMine(Canvas c, int x, int y){
+        super(c, x, y, 0, 0);
+        PhantomMine.recharge = cooldown;
+        lifetime = 200;
+    }
+
+    void draw(){
+
+        c.opacity = 1;
+        c.fill = new Color(100,100,100);
+        c.circle(x-Camera.x,y-Camera.y,20);
+        c.opacity = Math.sin(offset+c.frameCount/50.0)*Math.sin(offset+c.frameCount/50.0);
+        c.fill = new Color(255,0,0);
+        c.circle(x-Camera.x,y-Camera.y,6);
+        c.opacity = 1;
+    }
+
+    public void update(){
+        if(Canvas.distance(x, y, c.player.x, c.player.y)<30){
+            c.player.health-=damage;
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 200);
+            isDead = true;
+        }
+        lifetime--;
+        if(lifetime<=0){
+
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 200);
+        }
+        draw();
+    }
+}
+
+class Turret extends Bullet{
+    int damage=1;
+    static int cooldown = 4;
+    static int recharge = 0;
+    public Turret(Canvas c, int x, int y, double xvel, double yvel){
+        super(c, x, y, xvel, yvel);
+        Turret.recharge = cooldown;
+        lifetime = 60;
+    }
+
+    void draw(){
+
+        c.opacity = Math.max(0,Math.min(1, lifetime/60.0));
+
+        c.fill = new Color(255,255,255);
+        c.circle(x-Camera.x,y-Camera.y,2);
+
+        c.opacity = 1;
+    }
+
+    public void update(){
+        if(Canvas.distance(x, y, c.player.x, c.player.y)<30){
+            c.player.health-=damage;
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 10);
+            isDead = true;
+        }
+        if(c.g.blockAt(x, y)=='*'){
+            isDead = true;
+
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 10);
+        }
+        lifetime--;
+        x+=11*xvel;
+        y+=11*yvel;
+        draw();
+    }
+}
+
+class Bomb extends Bullet{
+    int damage=0;
+    static int cooldown = 80;
+    static int recharge = 0;
+    public Bomb(Canvas c, int x, int y){
+        super(c, x, y, Math.random(), Math.random());
+        Bomb.recharge = cooldown;
+        lifetime = (int)(Math.random()*40);
+    }
+
+    void draw(){
+
+        c.opacity = 0.5;
+
+        c.fill = new Color(100,200,100);
+        c.circle(x-Camera.x,y-Camera.y,20);
+
+        c.opacity = 1;
+    }
+
+    public void update(){
+
+        if(c.g.blockAt(x, y)=='*'||lifetime<=0){
+            isDead = true;
+            c.g.ghosts[c.g.ghostCount] = new Ghost(c, x, y, c.g.ghostCount);
+            c.g.ghostCount++;
+        }
+
+        lifetime--;
+        x+=3*xvel;
+        y+=3*yvel;
+        draw();
+    }
+}
+
+class Meteor extends Bullet{
+    int damage=0;
+    static int cooldown = 60;
+    static int recharge = 0;
+    double r = 8;
+    public Meteor(Canvas c, int x, int y, double xvel, double yvel){
+        super(c, x, y, xvel, yvel);
+        Meteor.recharge = cooldown;
+        lifetime = (int)(Math.random()*90);
+    }
+
+    void draw(){
+
+        c.opacity = 0.5;
+        for(int i = 0; i < 20; i++){
+            c.fill = new Color(255, (int)(Math.random()*100), 0);
+            c.circle((int)(x-Camera.x+10*Math.random()-5),(int)(y-Camera.y+10*Math.random()-5),10);
+        }
+
+        c.opacity = 1;
+        c.fill = new Color(0,0,0);
+        c.circle(x-Camera.x, y-Camera.x, 10);
+
+        c.addSpark(x-Camera.x,y-Camera.y, 0, 4);
+    }
+
+    public void update(){
+
+        if(c.g.blockAt(x, y)=='*'||lifetime<=0){
+            isDead = true;
+
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 1000);
+            String targetStr = c.g.level[(int)(y/20)];
+            c.g.level[(int)(y/20)] = targetStr.substring(0, (int)(x/20))+":"+targetStr.substring((int)(x/20)+1);
+            c.g.level[(int)(y/20)] = targetStr.substring(0, (int)((x-10)/20))+":"+targetStr.substring((int)((x-10)/20)+1);
+            c.g.level[(int)(y/20)] = targetStr.substring(0, (int)((x+10)/20))+":"+targetStr.substring((int)((x+10)/20)+1);
+
+            targetStr = c.g.level[(int)((y-10)/20)];
+            c.g.level[(int)((y-10)/20)] = targetStr.substring(0, (int)(x/20))+":"+targetStr.substring((int)(x/20)+1);
+
+            targetStr = c.g.level[(int)((y+10)/20)];
+            c.g.level[(int)((y+10)/20)] = targetStr.substring(0, (int)(x/20))+":"+targetStr.substring((int)(x/20)+1);
+        }
+
+        lifetime--;
+        x+=r*xvel;
+        y+=r*yvel;
+        r*=0.98;
+        draw();
+    }
+}
+
+class Missile extends Bullet{
+    int damage=30;
+    static int cooldown = 80;
+    static int recharge = 0;
+    public Missile(Canvas c, int x, int y, double xvel, double yvel){
+        super(c, x, y, xvel, yvel);
+        Missile.recharge = cooldown;
+        lifetime = 100;
+    }
+
+    void draw(){
+
+        c.opacity = Math.max(0,Math.min(1, lifetime/500.0));
+        double magnitude = Canvas.distance(c.player.x, c.player.y, x, y);
+        double dx = (c.player.x-x)/magnitude;
+        double dy = (c.player.y-y)/magnitude;
+        c.fill = new Color(0,0,0);
+        c.circle((int)(x-Camera.x),(int)(y-Camera.y),16);
+
+        for(var i = 0; i < 7; i++){
+            c.fill = new Color(255,(int)(200*Math.random()),0);
+            c.circle((int)(x-Camera.x-7*i*dx),(int)(y-Camera.y-7*i*dy),12-i);
+        }
+
+        c.opacity = 1;
+    }
+
+    
+    public void update(){
+        if(Canvas.distance(x, y, c.player.x, c.player.y)<30){
+            c.player.health-=damage;
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 600);
+            isDead = true;
+        }
+        if(c.g.blockAt(x, y)=='*'){
+            isDead = true;
+
+            c.addSpark(x-Camera.x,y-Camera.y, 0, 600);
+        }
+        lifetime--;
+        x+=0.5*xvel;
+        y+=0.5*yvel;
+        double magnitude = Canvas.distance(c.player.x, c.player.y, x, y);
+        double dx = (c.player.x-x)/magnitude;
+        double dy = (c.player.y-y)/magnitude;
+        xvel+=dx;
+        yvel+=dy;
+        draw();
+    }
+}
+
+class Spell{
+    double damage = 10;
+    static int keycode = 0;
+    static int cooldown = 100;
+    Particle particle;
+    int lifetime = 200;
+    static int recharge = 0;
+    boolean isDead = false;
+
+    public Spell(Canvas c, int x, int y, double xvel, double yvel){
+        particle = new Particle(c);
+
+        particle.x = x;
+        particle.y = y;
+        particle.xvel = xvel;
+        particle.yvel = yvel;
+    }
+
+    public void update(){
+    }
+}
+
+class Fireball extends Spell{
+    static int keycode = 49;
+    static int cooldown = 5;
+    int lifetime = 300;
+    int damage = 34;
+    public Fireball(Canvas c, int x, int y, double xvel, double yvel){
+        super(c, x, y, xvel, yvel);
+        Fireball.recharge = cooldown;
+    }
+
+    void draw(){
+        particle.c.opacity = 0.4*lifetime/300;
+        int xpos = (int)particle.x-Camera.x;
+        int ypos = (int)particle.y-Camera.y;
+        particle.c.fill = new Color(200, 50, 0);
+        particle.c.circle(xpos,ypos,16);
+        particle.c.fill = new Color(200, 100, 0);
+        particle.c.circle(xpos,ypos,14);
+        particle.c.fill = new Color(200, 150, 50);
+        particle.c.circle(xpos,ypos,12);
+        particle.c.fill = new Color(200, 180, 120);
+        particle.c.circle(xpos,ypos,10);
+        particle.c.opacity = 1;
+    }
+
+    public void handleCollisions(){
+        if(particle.c.g.blockAt((int)particle.x, (int)particle.y)=='*'){
+            isDead = true;
+        }
+        for(Ghost ghosty : particle.c.g.ghosts){
+            if(ghosty==null) continue;
+            if(Canvas.distance(ghosty.x, ghosty.y, particle.x, particle.y)<20&&ghosty.health>=0){
+                ghosty.health-=damage/2+(damage/2)*(lifetime/300);
+                isDead = true;
+            }
+        }
+        if(particle.c.g.bossBattle!=null){
+            if(Canvas.distance(particle.c.g.bossBattle.x, particle.c.g.bossBattle.y, particle.x, particle.y)<40){
+                isDead = true;
+                particle.c.g.bossBattle.health-=damage;
+            }
+            for(var i = 0; i < particle.c.g.bossBattle.bullets.length; i++){
+                if(particle.c.g.bossBattle.bullets[i]==null) continue;
+                if(Canvas.distance(particle.c.g.bossBattle.bullets[i].x,particle.c.g.bossBattle.bullets[i].y, particle.x, particle.y)<20){
+                    isDead = true;
+                    particle.c.g.bossBattle.bullets[i].isDead = true;
+                }
+            }
+        }
+
+    }
+
+    public void update(){
+        particle.update();
+        draw();
+        handleCollisions();
+        if(particle.c.g.blockAt((int)particle.x,(int)particle.y)==':'){
+            return;
+        }
+        lifetime-=4;
+        if(particle.c.g.blockAt((int)particle.x,(int)particle.y)=='.'){
+            lifetime-=12;
+        }
+        if(lifetime<=0){
+            isDead = true;
+        }
+    }
+}
+
+class Camera{
+    static int x = 0;
+    static int y = 0;
+    static int lowerBound = 0;
+    static int upperBound = 1200;
+    static void moveToPoint(int x, int y, double t){
+        Camera.x = (int)(Camera.x+(x-Camera.x)*t);
+        Camera.y = (int)(Camera.y+(y-Camera.y)*t);
+        Camera.constrain(lowerBound, upperBound);
+    }
+
+    static void constrain(int min, int max){
+
+        Camera.x = Math.min(Math.max(Camera.x,min),max);
+        Camera.y = Math.min(Math.max(Camera.y,min),max);
+    }
+}
+
+class Game{
+    Canvas c;
+
+    static int[] stoneTex = new int[4800];
+    static int[] lavaTex = new int[4800];
+    static int[] wallTex = new int[4800];
+    static int[] iceTex = new int[4800];
+    static int[] fissureTex = new int[4800];
+    static int[] sprite1 = new int[4800];
+    static int[] sprite2 = new int[4800];
+    static int[] sprite3 = new int[4800];
+    static int[] sprite4 = new int[4800];
+    static int[] sprite5 = new int[4800];
+    static int[] sprite6 = new int[4800];
+    static int[] sprite7 = new int[4800];
+    static int[] sprite8 = new int[4800];
+    static int[] potion = new int[4800];
+    static int[] boss = new int[26000];
+
+    static Ghost ghosts[] = new Ghost[100];
+    static int ghostCount = 0;
+
+    //* = wall
+    //? = spawn
+    //@ = portal
+    //. = ice
+    //: = lava
+    //o = enemy
+    //$ = coin
+    //x = boost
+    static int levelNum = 0;
+    static String[][] levels = {
+            {
+                "**************************************       *******************************************",
+                "**************************************       *******************************************",
+                "**************************************       *******************************************",
+                "**************************************       *******************************************",
+                "****************************************************************************************",
+                "**********************************               ***************************************",
+                "********************************** * * * * * * * ***************************************",
+                "**********************************               ***************************************",
+                "********************************** *     ?     * ***************************************",
+                "********************************** *           * ***************************************",
+                "********************************** *           * ***************************************",
+                "********************************** *  ** $ **  * ***************************************",
+                "********************************** *  **   **  * ***************************************",
+                "********************************** *  **   **  * ***************************************",
+                "**********************************               ***************************************",
+                "**********************************  **       **  ***************************************",
+                "**********************************  **       **  ***************************************",
+                "**********************************  **       **  ***************************************",
+                "**********************************               ***************************************",
+                "********************************** ***       *** ***************************************",
+                "********************************** ***       *** ***************************************",
+                "********************************** ***       *** ****************************************",
+                "********************************** ***       *** ***************************************",
+                "**********************************      *@*      ***************************************",
+                "**********************************      ***      ***************************************",
+                "**********************************      ***      ***************************************",
+                "**********************************      ***      ***************************************",
+                "***********************************             ****************************************",
+                "*************************************         ******************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "*********************************::::::::::::::******************************************",
+                "************************************:::::::::*******************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+            },
+            {
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "***************************************************************************************",
+                "****************************************************************************************",
+                "*****************************************?**********************************************",
+                "***************************************** **********************************************",
+                "***************************************** **********************************************",
+                "***************************************** **********************************************",
+                "***************************************** **********************************************",
+                "***************************************** **********************************************",
+                "*****************************************    *******************************************",
+                "******************************************** *******************************************",
+                "***************************************** ** *******************************************",
+                "*****************************      *   *   *    ***************************************",
+                "*************                       **       **  ***************************************",
+                "************* ****************      **       **  ***************************************",
+                "************* ********************  **       **  ***************************************",
+                "************* ******************** *             ***************************************",
+                "************* ********************               ***************************************",
+                "************* **********************           *****************************************",
+                "************* ******************** *           * ****************************************",
+                "************* ******************** *           * ***************************************",
+                "************* **********************           *****************************************",
+                "************* ********************               *            **************************",
+                "************* ********************               *            **************************",
+                "************* ********************                      ****  **************************",
+                "************* *********************                 ********  **************************",
+                "************* ***********************         **************  **************************",
+                "************* ************************** *******************  **************************",
+                "************* ************************** *******************  **************************",
+                "************* ************************** *******************  **************************",
+                "************* *****     **************** *******************  **************************",
+                "************* *****     **************** *******************  **************************",
+                "*************        $  ****************  ******************  **************************",
+                "*******************     ***************** ******************  **************************",
+                "********************* ***********:::: :::::::::*************  ***************************",
+                "*********************               :::: ::::***************  **************************",
+                "*:*****:              **************************************  **************************",
+                "*::****: ***************************************************  **************************",
+                "**:::    ::::: $ **************************************       *************************",
+                "***:: ::::::::: ::******************************************  **************************",
+                "****:           ::******************************************  **************************",
+                "****::::::::::::::******************************************  **************************",
+                "********:::::::::*******************************************  **************************",
+                "************************************************************  **************************",
+                "****************************************************          **************************",
+                "**************************************************           ***************************",
+                "*********************************************         **********************************",
+                "******************************************          ************************************",
+                "**********************************              ****************************************",
+                "**********************************              ****************************************",
+                "**********************************              ****************************************",
+                "**********************************              ****************************************",
+                "**********************************              ****************************************",
+                "**********************************              ****************************************",
+                "**********************************      o       ****************************************",
+                "**********************************              ****************************************",
+                "**********************************              ****************************************",
+                "***************************************   **********************************************",
+                "**************************************     *********************************************",
+                "**************************************  @  *********************************************",
+                "**************************************     *********************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+            },
+            {
+                "*********************.....*************************************************************",
+                "*************************....*********   ?   *******************.***********.************",
+                "*****.*********************.....*****           ********************...*****.***************",
+                "***************.***********...***            *    **************.*****.*******.************",
+                "****.********************.**.**.                ..******.***********.*.*******.*************",
+                "***********.*************.*.***....        ..  ..***************.****.*.****..*******.********",
+                "****.**************.*****...*****................**********************.**.***************",
+                "**************.************..*****................*********.*************.********.*********",
+                "****************************....***................*********************.*********.*********",
+                "******.****.*************...............*................***********************.*********",
+                "******************************...........*........................*********************************",
+                "***************************.............**......................... **********.***********",
+                "*****.******.*********................**$ ***....................************************",
+                "*********************................ *o **   **  *............********  o***************",
+                "***********************................ *...............................*****************************",
+                "***********.*********..................*................................****************************",
+                "***.*******************................*.................................***************************",
+                "**************.*******................*..................................***************************",
+                "**.*******************...............*.................................*****************************",
+                "*************.****   ..............**...................................****************************",
+                "*******************   ***********..***........**.****** ***** **************************",
+                "**************$** *    **********..***  ... .***.******o*****  o*************************",
+                "************** **   * ***********.***    .  .***..**************************************",
+                "**************  *** *************.**      **......***************************************",
+                "***************         **  ***           ***   ...***************************************",
+                "**********************  o          *       ***   ......***********************************",
+                "***********.......******************      ***      ***.....********************************",
+                "******************..*******..*****o            *********..........***********************",
+                "**********************..*****..******         ************..........********************",
+                "***********************.*****.******        ***************..........*****************",
+                "***********************.**...*.*********  ***********.******..........******************",
+                "********************.*.****.***....*************......******...........******************",
+                "********************.*****.******************....******o   .............****************",
+                "******************.***.******************........**********..............****************",
+                "**************************.**     ...............********...................   $o******",
+                "***********************.*****     ******************........................*************",
+                "*************************.***     ............................***************************",
+                "****************************     ***.........................***************************",
+                "****************************     *******************************************************",
+                "******************************* **********************  *********************************",
+                "*******************************                        @********************************",
+                "********************************* ** ** ** ** ** ** ** *********************************",
+                "********************************  *   *  * *  *   *  *  ********************************",
+                "*********************************o  o  o o o o o o o o o********************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+                "****************************************************************************************",
+            },
+            {
+                "****************************************************************************************",
+                "*:::: :::::::::::::::*:::::::::::::::::   :::::::::::::::::::::::::::::::::::::::::*****",
+                "*:::::::::::::::::::::::::::::::::::::: ? :::::::::::::::::::::::::::::::::::::::::*****",
+                "*:::: ::::::::::::: :::::::::*:::::::::   :::::::::::::::::::::::::::::::::::::::::*****",
+                "*::::::: ::::: ::::::::::::::::::::::::: ::::::::::::::::::::::::::::::::::::::::::*****",
+                "*::::::::::::::::::::::::::              ::::::::::::::::::::::::::::::::::::::::::*****",
+                "*:::::::::::o:::*:::::::::  :::::::::::::::::::::::::::::::::::::::::::::::::::::::*****",
+                "*::::::: ::::::::::::::::    ::::::::::::::::::::::::::::::::::::::::::::::::::::::*****",
+                "*:::::::::::::::::::::::   :   ::::::::::::::::::::::::::::::::::::::::::::::::::::*****",
+                "*::::::::::::                  :::::::::::                  :::::::::::::::::::::::*****",
+                "*::::::::       :::::::::     ::::::::::                      :::::::::::::::::::::*****",
+                "*::::::::       ::::::::::   ::::::::      ::::::::::::::::::    ::::::::::::::::::*****",
+                "*::::::::       ::::::::::  :::::::::    :::::::::::::::::::::     :::::::::::::::::*****",
+                "*::*:::::   $   ::::::::::  ::::::::  :::::::::  o   :::::::::::   ::::::::::::::::*****",
+                "*::::::::       :::::::::   :::::::   :::::::           :::::::    ::::::::::::::::*****",
+                "*::::::::       :::::::::     :::    :::::::            :::::::    ::::::::::::::::*****",
+                "*::::::::       ::::::::      :::  :::::::::     $      :::::::   :::::::::::::::::*****",
+                "*::::::::       :::::::    $      :::::::::             :::::::   :::::::::::::::::*****",
+                "*::::::::::::::   *:::           :::::::              :::::::    ::::::::::::::::::*****",
+                "*:::::::::::::::  ********************    ::::::  :::::::::::   :::::::::::::::::::*****",
+                "*::::::::o:::::::   ::                 :::::::::  ::::::::::    :::::::::::::::::::*****",
+                "*:::::::::::::::::                 :::::::::::::  :::::::::   :::::::::::::::::::::*****",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::  ::::::    :::::::::::::::::::::::*****",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::  ::::   :::::::::::*******::::::::*****",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::  ::  :::::::::::************::::::*****",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::  : :::::::::*****************:::::*****",
+                "*::::::::::::::::::::::::::::::::::::::::::::::::  :::::::::******** o *******:::::*****",
+                "*::::::::::::::::::::::::::::::::::::::::::::::::  :::::::::********   *******:::::*****",
+                "*::::::::::::**:                                                   $  *********:::******",
+                "*:::::::::***                                     :::::::::*****************:::::*:*****",
+                "*:::::::***    :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::*::*****",
+                "*::::*****   ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::*:::*****",
+                "*:*******  ::::::::::::::::::::::::::*******::::::::::::::::::::::::::::::::::*::::*****",
+                "*****$**  ::::::::::::::::::::::::::*** o ***:::::::::::::::::::*:*::::::::::*:::::*****",
+                "***** **  :::::::::::::::::::::::::**** $ ****::::::::::::::       *::::::::*::::::*****",
+                "***** **  ::::::::::::::::::::::::*****   *****:::::::::::::       ::::::::*:::::::*****",
+                "*****        :::::::::::::::::::::****** ******:::::::::::::       *::::::*::::::::*****",
+                "*********                                                       $  o*::::*:::::::::*****",
+                "*::::::::*::::::::::::::::::::::::****** ******:::::::::::::       *::::*::::::::::*****",
+                "*:::::::::*::::::::::::::::::::::::****   ****::::::::::::::       ::::*:::::::::::*****",
+                "*::::::::::*::::::::::::::::::::::::***   ***:::::::::::::::       *::*::::::::::::*****",
+                "*:::::::::::*::::::::::::::::::::::::**   **::::::::::::::::::::*:*::*:*:::::::::::*****",
+                "*::::::::::*:*::::::::::::::::::::::::*   *:::::::::::::::::::::::::*:::*::::::::::*****",
+                "*:::::::::*:::*:::::::::::::::::::::::*   *::::::::::::::::::::::::*:::::*:::::::::*****",
+                "*::::::::*:::::*::::::::::::::::::::::*   *:::::::::::::::::::::::*:::::::*::::::::*****",
+                "*:::::::*:::::::*:::::::::::::::::::::*   *::::::::::::::::::::::*:::::::::*:::::::*****",
+                "*::::::*:::::::::*::::::::::::::::::::*   *:::::::::::::::::::::*:::::::::::*::::::*****",
+                "*:::::*:::::::::::*::::::::::::::::::::   :::::::::::::::::::::*:::::::::::::*:::::*****",
+                "*::::*:::::::::::::*:::::::::::::::::::   ::::::::::::::::::::*:::::::::::::::*::::*****",
+                "*:::*:::::::::::::::*::::::::::::::::::   :::::::::::::::::::*:::::::::::::::::*:::*****",
+                "*::*:::::::::::::::::*:::::::::::::::::: :::::::::::::::::::*:::::::::::::::::::*::*****",
+                "*:*:::::::::::::::::::*::::::::::::::::: ::::::::::::::::::*:::::::::::::::::::::*:*****",
+                "**:::::::::::::::::::::*****o$                      $o*****:::::::::::::::::::::::******",
+                "*:*:::::::::::::::::::*::::::::::::::::: ::::::::::::::::::*:::::::::::::::::::::*:*****",
+                "*::*:::::::::::::::::*:::::::::::::::::: :::::::::::::::::::*:::::::::::::::::::*::*****",
+                "*:::*:::::::::::::::*::::::::::::::::::: ::::::::::::::::::::*:::::::::::::::::*:::*****",
+                "*::::*:::::::::::::*:::::::::::::::::::: :::::::::::::::::::::*:::::::::::::::*::::*****",
+                "*:::::*:::::::::::*::::::::::::::::::::: ::::::::::::::::::::::*:::::::::::::*:::::*****",
+                "*::::::*:::::::::*:::::::::::::::::::::: :::::::::::::::::::::::*:::::::::::*::::::*****",
+                "*:::::::*:::::::*::::::::::::::::::::::: ::::::::::::::::::::::::*:::::::::*:::::::*****",
+                "*::::::::*:::::*:::::::::::::::::::::::: :::::::::::::::::::::::::*:::::::*::::::::*****",
+                "*:::::::::*:::*::::::::::::::::::::::::: ::::::::::::::::::::::::::*:::::*:::::::::*****",
+                "*::::::::::*:*:::::::::::::::::::::::::: :::::::::::::::::::::::::::*:::*::::::::::*****",
+                "*:::::::::::*::::::::::::::::::::::::::: ::::::::::::::::::::::::::::*:*:::::::::::*****",
+                "*::::::::::*:::::::::::::::::::::::::::: :::::::::::::::::::::::::::::*::::::::::::*****",
+                "*:::::::::*::::::::::::::::::::::::::::: ::::::::::::::::::::::::::::::*:::::::::::*****",
+                "*::::::::*:::::::::::::::::::::::::::::: :::::::::::::::::::::::::::::::*::::::::::*****",
+                "*:::::::*::::::::::::::::::::::::::::::: ::::::::::::::::::::::::::::::::*:::::::::*****",
+                "*::::::*:::::::::::::::::::::::::::::::: :::::::::::::::::::::::::::::::::*::::::::*****",
+                "*:::::*::::::::::::::::::::::::::::::::: ::::::::::::::::::::::::::::::::::*:::::::*****",
+                "*::::*:::::::::::::::::::::::::::::::::: :::::::::::::::::::::::::::::::::::*::::::*****",
+                "*:::*::::::::::::::::::::::::::::::::::: ::::::::::::::::::::::::::::::::::::*:::::*****",
+                "*::*:::::::::::::::::::::::::::::::::::: :::::::::::::::::::::::::::::::::::::*::::*****",
+                "*:*::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::*:::*****",
+                "**:::::::::::::::::::::::::::::::::::::: :::::::::::::::::::::::::::::::::::::::*::*****",
+                "*::::::::::::::::::::::::::::::::::::::: ::::::::::::::::::::::::::::::::::::::::*:*****",
+                "*::::::::::::::::::::::::::::::::::::::: :::::::::::::::::::::::::::::::::::::::::******",
+                "*::::::::::::::::::::::::::::::::::::::: ::::::::::::::::::::::::::::::::::::::::::*****",
+                "*:::::::::::::::::::::::::::::::::::::: @ :::::::::::::::::::::::::::::::::::::::::*****",
+                "****************************************************************************************",
+            },
+            {
+                "************************************************************************************",
+                "*      *  :*         ::::::*                                 $      *  ........*****",
+                "*   ?  * . *           ::::*             x            *          *      .......*****",
+                "*      *   *   **       :::*                              *             .......*****",
+                "*    ***      *            *                        *          *         ......*****",
+                "*            *                       *****                                .....*****",
+                "*            *                      *  o  ***          **        *         ....*****",
+                "*************::::::::::::::::::::::*         ******                         ...*****",
+                "*     $  .. :::::::::::::::::::::::*  ::           **                        ..*****",
+                "*   ..  .     :::::::::::::::::::*::::: ::                                     *****",
+                "*    ..             ::  ::    **        :..*****                :              *****",
+                "*     .         *                         .xxxxx                ::   x  ::     *****",
+                "*     *         .          .                        x       x     :  $ ::      *****",
+                "*     *                     .    .  x              x       x       ::   :      *****",
+                "*  o  *         .             .x .       x                x        ::: ::      *****",
+                "*     *         .         .   x     .                      x         : :       *****",
+                "*     *.       . .      x     .      .x      x              x         ::    o  *****",
+                "*     .        .  ..    .                                              :::     *****",
+                "*    .        .   .                                     *             **::::   *****",
+                "*   .       ..      ..  . .                  *         *                 :::   *****",
+                "* ..       ..        .                     *     *  *      *    *    *    :::: *****",
+                "*        ..                          * *  *    *    *      .       **     $  ::*****",
+                "*     ....        *             *****  *    x     *  :  *       *   *:  :      *****",
+                "*..... .         *x*           *         *    *      *       *    *  * : ::  : *****",
+                "*       . . .     *           *         *   *    *       **     *  o       : ::*****",
+                "*   $   :    .              ***                                                *****",
+                "******::      .            **                                *                 *****",
+                "* o o*  :      .          **                    : ******             ***************",
+                "*o o *   :      .        **      o       ::   ::x       *           *..........*********",
+                "* o o*   ::     .        x            :::  :::xxx   $    *******   *...........*****",
+                "*o o *    :     ..       x      :::  :::  $   :::x       *         *......$....*****",
+                "******    :      .            :::  ::  ::      ::xxx     *  *     **...........*****",
+                "*        :       .           ::          :      ::::x    *****     *........   *****",
+                "*               .   .****.   :    **     :::       :x    * o *  *  * . ..      *****",
+                "*      ::     ..     **          **        ::::   o      *      ****     .     *****",
+                "*     ::   ...     .**       ****       .    :::                               *****",
+                "* o ::  ...        .*o.*** ***..*        ...   :::                        o    *****",
+                "*::: ...        .****** .**..  ..          ..  :::           $   $           ::*****",
+                "*....     $   .****...      .  ...          .   ::::  ::       o          ::::******",
+                "**.x:*       .**    ..          ...         ..    ::::         $        :::::* *****",
+                "*.*:*.:.*   .*  o     .            .          .      ::::  :         : ::::*   *****",
+                "*:.x*:*:   ***                                 .      ::::::       :::::::*    *****",
+                "*.*:.*:*  ** **            :    ::       ::    :      :: :::::   ::::***       *****",
+                "*x:.*.o:***    *     *      :: ::         :: ::            :::::::***:         *****",
+                "*x*.*:..*           *        : :     o     : :               ::::::*     o$$   *****",
+                "*..*:..*   $     ***          ::   * . *   ::              ***    :::::        *****",
+                "*::::::*     ***  *           :: * .$. * ::             **          ::::       *****",
+                "*:::::::::**  *::::  *            : * . * :              *             ::::   x*****",
+                "*:::::::::****:::::  *             : x :              **       $$         ::::x*****",
+                "*::::::::::::::::::  **                       *     ***   **         ..       x*****",
+                "*:::::::::::::::::::  **      **             ***   ****  *::***       .........*****",
+                "*:::::::::::::::::::    *   **  *          ***  ***::::**:::::**  **::::....:::*****",
+                "*:::::::::::::::::::::   ***      o       **::::::::::::::::::::**:::::::...:::*****",
+                "*::::::::::::::::::::::              * ****::::::::::::....::::...:::::::..::::*****",
+                "*:::::::::::::::::::::::::::::        *:*::::...........::......*.....**..:::::*****",
+                "*::::::::::::::::::::::::::     .      ::::...:::::::::::::::::::::::.....:::::*****",
+                "*::::::::         :::            .... *.....:::::*:::::::*::      :::::::::::::*****",
+                "*                                   ....:::::::::::::::::**:  o     :*:::::::::*****",
+                "*           ::::::                 ::::::::::::::::::*::      :::*  :::::::::::*****",
+                "*     :::::::::::::::::::::::::::::::::::::::::*:::::::     ::::::  :::::::::::*****",
+                "*    :::::     :::                            ******      ::::::::             *****",
+                "*                                    ******  xxxxxxxx    :::         :    o$   *****",
+                "*     ::::::::::       ooo                $x::*******::::           ::         *****",
+                "*::::::*::::*:::::                 :::::::::::::::::::::::*     *::::::::::::::*****",
+                "*:::::::**:*::::::              :::::*:::::::::::::::::****     *:   $$$$$$$   *****",
+                "*::::::::***::::::::      :::::::::::::::::*::::::****** **     :*             *****",
+                "*:::::::::::*::::::::::::::::::::::::::::**::::***:::::** *      *:.          .*****",
+                "******************************************************:* **      :* .        . *****",
+                "*.....................................................:** *       *: .      .  *****",
+                "*......     ...........xx       ...     .        .    :* **       :*  .    .   *****",
+                "*..o        .    *.....*         .*.   .        .     :** *        *:  .  .    *****",
+                "*  o       .    *:*....*        .*  . .        .      :* **        :*   ..     *****",
+                "*  o     ...     *             .*    .        .       :** *         *:         *****",
+                "*  o   ...       .      x     .       .      .        :* **         :*         *****",
+                "*  o   *        .      x     .         .    .         :** *          *:        *****",
+                "*  o   *      ***       x   .   *       .  .          :* **          :*        *****",
+                "********   *   .**         .    *        ..           :****                    *****",
+                "* @    *  *:* ....        .      *        .                        *           *****",
+                "*        .. ..           .    xx           .                     **     **     *****",
+                "************************************************************************************"
+            },{
+                "*******************************************************************************************",
+                "*::::::::::::::::::::::::::::::::::::::        ::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::        ::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::        ::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::   ??   ::::::::::::::::::::::::::::::::::::::::*:",
+                "*::::::::::::::::::::::::::::::::::::::        ::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::        ::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::        ::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::::    ::::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::::    ::::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::                                                    ::::::::::::::::::*",
+                "*::::::::::::::                                                        ::::::::::::::::*",
+                "*:::::::::::::                                                          :::::::::::::::*",
+                "*:::::::::::::                                                          :::::::::::::::*",
+                "*::::::::::::          ****                                 ****         ::::::::::::::*",
+                "*::::::::::::         **$$**                               **$$**        ::::::::::::::*",
+                "*::::::::::::         *$..$*                               *$..$*        ::::::::::::::*",
+                "*::::::::::::         *$..$*                               *$..$*        ::::::::::::::*",
+                "*::::::::::::         **$$**                               **$$**        ::::::::::::::*",
+                "*::::::::::::          ****                                 ****         ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*:::::  $  ::                                                            ::  $  :::::::*",
+                "*:::::$                                     !                                  $:::::::*",
+                "*:::::    $                                                                $    :::::::*",
+                "*:::::  $  ::                                                            ::  $  :::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::  *                                                      *  ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::                                                            ::::::::::::::*",
+                "*::::::::::::         ****                                  ****         ::::::::::::::*",
+                "*::::::::::::        **$$**                                **$$**        ::::::::::::::*",
+                "*::::::::::::        *$..$*                                *$..$*        ::::::::::::::*",
+                "*::::::::::::        *$..$*                                *$..$*        ::::::::::::::*",
+                "*::::::::::::        **$$**                                **$$**        ::::::::::::::*",
+                "*::::::::::::         ****                                  ****         ::::::::::::::*",
+                "*:::::::::::::                                                          :::::::::::::::*",
+                "*:::::::::::::                                                          :::::::::::::::*",
+                "*::::::::::::::                                                        ::::::::::::::::*",
+                "*::::::::::::::::                                                    ::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::::....::::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::::....::::::::::::::::::::::::::::::::::::::::::*",
+                "*::::::::::::::::::::::::::::::::::::::::....::::::::::::::::::::::::::::::::::::::::::*",
+                "****************************************************************************************",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::",
+                "*:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::",       
+            }
+        };
+    static String[] level = levels[levelNum];
+    Boss bossBattle;
+    public Game(Canvas c) throws IOException{
+        this.c = c;
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/stoneTex.csv.txt", stoneTex);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/lavaTex.csv.txt", lavaTex);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/wallTex.csv.txt", wallTex);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/iceTex.csv.txt", iceTex);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/fissure.csv.txt", fissureTex);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/player1.txt.txt", sprite1);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/player2.txt.txt", sprite2);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/player3.txt.txt", sprite3);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/player4.txt.txt", sprite4);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/player5.txt.txt", sprite5);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/player6.txt.txt", sprite6);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/player7.txt.txt", sprite7);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/player8.txt.txt", sprite8);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/potion.txt", potion);
+        loadTex("C:/Users/9694799554/Desktop/javaTextures/ghostBoss.txt", boss);
+    }
+
+    public void loadTex(String file, int[] lstToWrite) throws IOException{
+
+        Scanner fileScan; 
+        int i = 0;
+        Scanner scanSecond;
+        fileScan = new Scanner(new File(file));
+        while(fileScan.hasNext()){
+            String line = fileScan.nextLine();
+            scanSecond = new Scanner(line).useDelimiter(","); 
+
+            while(scanSecond.hasNextInt()) {
+                lstToWrite[i]=scanSecond.nextInt();
+                i++;
+            }       
+            scanSecond.close();
+
+        }
+
+    }
+
+    public void setupLevel(){
+        ghostCount = 0;
+        for(int x = 0; x< 80; x++){
+            for(int y = 0; y < 80; y++){
+                if(level[y].charAt(x)=='o'){
+                    ghosts[ghostCount] = new Ghost(c, x*20+10, y*20+10, ghostCount);
+                    ghostCount++;
+                }
+                if(level[y].charAt(x)=='!'){
+                    bossBattle = new Boss(c, x*20, y*20);
+                }
+            }
+        }
+    }
+
+    public char blockAt(int x, int y){
+        if(x<0||y<0||x>80*20||y>80*20) return ' ';
+        return level[y/20].charAt(x/20);
+    }
+
+}
+
